@@ -20,6 +20,7 @@
 import sys
 from logical_expression import *
 def main(argv):
+    argv = ["Check","a.txt","b.txt","c.txt"]
     if len(argv) != 4:
         print('Usage: %s [wumpus-rules-file] [additional-knowledge-file] [input_file]' % argv[0])
         sys.exit(0)

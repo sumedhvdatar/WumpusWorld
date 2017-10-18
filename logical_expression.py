@@ -173,9 +173,26 @@ def valid_symbol(symbol):
 def check_true_false(knowledge_base, statement):
 	#your code goes here
     print '\nYour code goes here\n'
-    value = tt_entails(knowledge_base,statement)
-    print "This is it"
-    print value
+    value_for_entails = tt_entails(knowledge_base,statement)
+    print "This is for positive alpha"
+    print value_for_entails
+    #print "This is for not tt entails"
+    negation_alpha = logical_expression()
+    negation_alpha.connective = ['not']
+    negation_alpha.subexpressions = statement
+    value_for_not_entails = tt_entails(knowledge_base,negation_alpha)
+    print "This is for negation Alpha"
+    print value_for_not_entails
+    if value_for_entails == True and value_for_not_entails != True:
+        print "It is definitely true"
+    elif value_for_entails != True and value_for_not_entails == True:
+        print "It is definitely false"
+    elif value_for_not_entails != True and value_for_entails != True:
+        print "It is possibly true,possibly false"
+    elif value_for_entails == True and value_for_not_entails == True:
+        print "It is both true and false"
+
+
     #for m in truth_table:
     #    print m
 
@@ -201,11 +218,17 @@ def tt_check_all(knowledge_base,symbols,alpha,model):
         #print model
         truth_table.append(model)
         if pl_true(knowledge_base,model):
+            print "This is the model"
+            print model
+            print pl_true(knowledge_base,model)
             #print pl_true(knowledge_base,model)
             result = pl_true(alpha, model)
             #assert result in (True, False)
             return result
         else:
+            print "This is for else"
+            print model
+            print pl_true(knowledge_base,model)
             return True
     else:
         #print model
@@ -214,13 +237,15 @@ def tt_check_all(knowledge_base,symbols,alpha,model):
         model_true = extend(model,symbol_to_be_removed,True)
         model_false = extend(model,symbol_to_be_removed,False)
         #return tt_check_all(knowledge_base,rest,alpha,extend(model,symbol_to_be_removed,True)) and tt_check_all(knowledge_base,rest,alpha,extend(model,symbol_to_be_removed,False))
-        return tt_check_all(knowledge_base, rest, alpha,model_true) and tt_check_all(knowledge_base, rest, alpha,model_false)
-
+        o1 = tt_check_all(knowledge_base, rest, alpha,model_true)
+        o2 = tt_check_all(knowledge_base, rest, alpha,model_false)
+        return o1 and o2
 def pl_true(sentence,model):
+
     m = sentence.symbol[0]
     if sentence.symbol[0] != '':
         #print "final"
-        #print sentence.symbol[0]
+        #print model
         return model[sentence.symbol[0]]
     elif sentence.connective[0].lower() == "and":
         for child in sentence.subexpressions:
@@ -237,32 +262,56 @@ def pl_true(sentence,model):
         return False
 
     elif sentence.connective[0].lower() == "if":
-        for child in sentence.subexpressions:
-            left_child = child.symbol[0]
-            right_child = child.symbol[1]
-            if pl_true(left_child, model) == True and pl_true(right_child,model) == False:
-                return False
+        left_child = sentence.subexpressions[0]
+        right_child = sentence.subexpressions[1]
+        #print pl_true(left_child,model)
+        #print pl_true(right_child,model)
+        if pl_true(left_child, model) == True and pl_true(right_child,model) == False:
+            return False
         return True
 
     elif sentence.connective[0].lower() == "iff":
-        for child in sentence.subexpressions:
-            left_child = child.symbol[0]
-            right_child = child.symbol[1]
-
-            left_child_value = pl_true(left_child,model)
-            right_child_value = pl_true(right_child,model)
-            if  left_child == right_child:
-                return True
+        left_child = sentence.subexpressions[0]
+        right_child = sentence.subexpressions[1]
+        #print "for iff"
+        #print pl_true(left_child, model)
+        #print pl_true(right_child, model)
+        if pl_true(left_child, model) == pl_true(right_child, model):
+            return True
         return False
 
 
     elif sentence.connective[0].lower() == "not":
-        for child in sentence.subexpressions:
+        #for child in sentence.subexpressions:
+        #child = sentence.subexpressions.symbol[0]
+        #check_symbol = sentence.subexpressions[0].symbol[0]
+        #result = None
+        if hasattr(sentence.subexpressions,'__len__'):
+            child = sentence.subexpressions[0]
             if pl_true(child, model) == True:
                 return False
-
             else:
+                #result =  True
                 return True
+        else:
+            child = sentence.subexpressions
+            if pl_true(child, model) == False:
+                return True
+            elif pl_true(child,model) == True:
+                return False
+
+    elif sentence.connective[0].lower() == "xor":
+        number_of_symbols = 0
+        for child in sentence.subexpressions:
+            # print child.subexpressions.symbol[0]
+            #print "for xor"
+            #print pl_true(child,model)
+            if pl_true(child, model) == True:
+                number_of_symbols = number_of_symbols + 1
+        if number_of_symbols == 1:
+            return True
+        else:
+            return False
 
 def extend(model, var, val):
     """Copy the substitution s and extend it by setting var to val; return copy."""
@@ -279,6 +328,3 @@ def read_rules_file(input_file):
         counter = [0]  # A mutable counter so recursive calls don't just make a copy
         subexpression = valid_expression(line.rstrip('\r\n'))
     input_file.close()
-
-
-
