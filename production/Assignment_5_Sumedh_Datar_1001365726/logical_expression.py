@@ -1,15 +1,14 @@
 #!/usr/bin/env python
 
 #-------------------------------------------------------------------------------
-# Author : Sumedh Vilas Datar
 # Name:        logical_expression
 # Purpose:     Contains logical_expression class, inference engine,
 #              and assorted functions
 #
-# 
-# 
-# Notes:      
-#               
+# Created:     09/25/2011
+# Last Edited: 07/22/2013
+# Notes:       *This contains code ported by Christopher Conly from C++ code
+#               provided by Dr. Vassilis Athitsos
 #              *Several integer and string variables are put into lists. This is
 #               to make them mutable so each recursive call to a function can
 #               alter the same variable instead of a copy. Python won't let us
@@ -26,6 +25,7 @@
 
 import sys
 from copy import copy
+from datetime import datetime
 
 
 #-------------------------------------------------------------------------------
@@ -33,6 +33,7 @@ from copy import copy
 
 all_symbols = []
 truth_table = []
+#hash_map = None
 class logical_expression:
     """A logical statement/sentence/expression class"""
     # All types need to be mutable, so we don't have to pass in the whole class.
@@ -171,37 +172,52 @@ def valid_symbol(symbol):
 #-------------------------------------------------------------------------------
 
 # Add all your functions here
-def check_true_false(knowledge_base, statement):
+def check_true_false(knowledge_base, statement,additional_rule_symbols_for_not_and_single):
+    hash_map = additional_rule_symbols_for_not_and_single
 	#your code goes here
     print '\nYour code goes here\n'
-    value_for_entails = tt_entails(knowledge_base,statement)
+    value_for_entails = tt_entails(knowledge_base,statement,hash_map)
     print "This is for positive alpha"
     print value_for_entails
+    print datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     #print "This is for not tt entails"
     negation_alpha = logical_expression()
     negation_alpha.connective = ['not']
     negation_alpha.subexpressions = statement
-    value_for_not_entails = tt_entails(knowledge_base,negation_alpha)
+    value_for_not_entails = tt_entails(knowledge_base,negation_alpha,hash_map)
     print "This is for negation Alpha"
     print value_for_not_entails
+    print datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     if value_for_entails == True and value_for_not_entails != True:
+        result = "It is definitely true"
         print "It is definitely true"
     elif value_for_entails != True and value_for_not_entails == True:
+        result = "It is definitely false"
         print "It is definitely false"
     elif value_for_not_entails != True and value_for_entails != True:
+        result = "It is possibly true,possibly false"
         print "It is possibly true,possibly false"
     elif value_for_entails == True and value_for_not_entails == True:
+        result = "It is both true and false"
         print "It is both true and false"
+    
+    f = open('result.txt', 'w')
+    f.write(datetime.now().strftime('%Y-%m-%d %H:%M:%S')+" : "+result)
+    f.close()
+    print "Truth table"
+    for m in truth_table:
+        print m
 
 
     #for m in truth_table:
     #    print m
 
 
-def tt_entails(knowledge_base,alpha):
+def tt_entails(knowledge_base,alpha,hash_map):
     #new_list = []
     symbols = []
     model = {}
+    filter_list = []
     #print all_symbols
     for i in all_symbols:
         #check = i.split("|")
@@ -209,15 +225,21 @@ def tt_entails(knowledge_base,alpha):
             symbols.append(i)
             #knowledge_base.symbol.append(i.split("|")[0])
     #knowledge_base.subexpressions.subexpressions.symbol[0]
-    return tt_check_all(knowledge_base,symbols,alpha,model)
+    for s in symbols:
+        if s in hash_map.keys():
+            get_gate = hash_map[s]
+            filter_list.append(s+"|"+get_gate)
+        else:
+            filter_list.append(s+"|b")
+    return tt_check_all(knowledge_base,filter_list,alpha,model,hash_map)
 
 
-def tt_check_all(knowledge_base,symbols,alpha,model):
+def tt_check_all(knowledge_base,symbols,alpha,model,hash_map):
     #print symbols
     if not symbols:
         #print "We generated the model"
         #print model
-        truth_table.append(model)
+        #truth_table.append(model)
         if pl_true(knowledge_base,model):
             #print "This is the model"
             #print model
@@ -234,13 +256,24 @@ def tt_check_all(knowledge_base,symbols,alpha,model):
     else:
         #print model
         symbol_to_be_removed, rest = symbols[0], symbols[1:]
+        get_contents = symbol_to_be_removed.split("|")
         #rest = symbols
-        model_true = extend(model,symbol_to_be_removed,True)
-        model_false = extend(model,symbol_to_be_removed,False)
+        ####################################################
+        #Implementing for fast processing
+        ###################################################
+        if get_contents[1] == "n":
+            model_false = extend(model,get_contents[0],False)
+            return tt_check_all(knowledge_base, rest, alpha,model_false,hash_map)
+        elif get_contents[1] == "p":
+            model_true = extend(model,get_contents[0], True)
+            return tt_check_all(knowledge_base, rest, alpha,model_true,hash_map)
+        elif get_contents[1] == "b":
+            model_true = extend(model,get_contents[0],True)
+            model_false = extend(model,get_contents[0],False)
         #return tt_check_all(knowledge_base,rest,alpha,extend(model,symbol_to_be_removed,True)) and tt_check_all(knowledge_base,rest,alpha,extend(model,symbol_to_be_removed,False))
-        o1 = tt_check_all(knowledge_base, rest, alpha,model_true)
-        o2 = tt_check_all(knowledge_base, rest, alpha,model_false)
-        return o1 and o2
+            o1 = tt_check_all(knowledge_base, rest, alpha,model_true,hash_map)
+            o2 = tt_check_all(knowledge_base, rest, alpha,model_false,hash_map)
+            return o1 and o2
 def pl_true(sentence,model):
 
     m = sentence.symbol[0]
@@ -321,11 +354,12 @@ def extend(model, var, val):
     return s2
 
 
-def read_rules_file(input_file):
-    input_file = open(input_file, 'rb')
-    for line in input_file:
-        if line[0] == '#' or line == '\r\n' or line == '\n' or line == '\r':
-            continue
-        counter = [0]  # A mutable counter so recursive calls don't just make a copy
-        subexpression = valid_expression(line.rstrip('\r\n'))
-    input_file.close()
+# def read_rules_file(input_file):
+#     input_file = open(input_file, 'rb')
+#     for line in input_file:
+#         if line[0] == '#' or line == '\r\n' or line == '\n' or line == '\r':
+#             continue
+#         counter = [0]  # A mutable counter so recursive calls don't just make a copy
+#         subexpression = valid_expression(line.rstrip('\r\n'))
+#     input_file.close()
+
